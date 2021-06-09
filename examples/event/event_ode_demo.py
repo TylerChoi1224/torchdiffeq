@@ -12,7 +12,7 @@ parser.add_argument('--method', type=str, choices=['dopri5', 'adams'], default='
 parser.add_argument('--data_size', type=int, default=1000)
 parser.add_argument('--batch_time', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=20)
-parser.add_argument('--niters', type=int, default=2500)             #2000
+parser.add_argument('--niters', type=int, default=2000)
 parser.add_argument('--test_freq', type=int, default=20)
 parser.add_argument('--viz', action='store_true')
 parser.add_argument('--gpu', type=int, default=0)
@@ -29,6 +29,8 @@ from torchdiffeq import odeint_event
 from torchdiffeq import odeint_adjoint as odeint
 
 device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
+#device = 'cpu'
+print(device)
 
 true_y0 = torch.tensor([[3., 0.]]).to(device)
 t = torch.linspace(0., 25., args.data_size).to(device)
@@ -59,6 +61,7 @@ with torch.no_grad():
 
 
 def get_batch():
+    #true_y : (50,2,1),     
     s = torch.from_numpy(np.random.choice(np.arange(args.data_size - args.batch_time, dtype=np.int64), args.batch_size, replace=False))
     batch_y0 = true_y[s]  # (M, D)
     batch_t = t[:args.batch_time]  # (T)
@@ -180,7 +183,13 @@ if __name__ == '__main__':
     loss_meter = RunningAverageMeter(0.97)
 
     for itr in range(1, args.niters + 1):
-        optimizer.zero_grad()
+        optimizer.zero_grad()        
+        
+        #batch_y0 : (20,2,1)
+        #batch_t : 평가하고자 하는 time step (10,)
+        #batch_y : 정답 (10,20,2,1)
+        #pred_y : 정답 (10,20,2,1)
+
         batch_y0, batch_t, batch_y = get_batch()
         pred_y = odeint(func, batch_y0, batch_t).to(device)
         loss = torch.mean(torch.abs(pred_y - batch_y))
